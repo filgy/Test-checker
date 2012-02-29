@@ -23,48 +23,86 @@ argumentR=false
 argumentS=false
 argumentC=false
 
+argumentDir=""
+argumentRegex=""
+
 # Define error codes
 errorOK=0
 errorTest=1
 errorCore=2
 
+# Test parsing
+#while [ "$#" != 0 ]; do
+#	echo "$@"
+#	shift
+#	sleep 1
+#done
+#
+#exit 0
+#
+# Check count of arguments <2,3>
+#if [[ $# -lt 2 || $# -gt 3 ]]; then
+	#echo "$helpMessage" 1>&2
+	#exit $errorCore
+#fi
+
 # Parsing arguments
 while getopts ':vtrsc' argument; do
+
 	case "$argument" in
 		v)	argumentV=true;;
 		t)	argumentT=true;;
 		r)	argumentR=true;;
 		s)	argumentS=true;;
 		c)	argumentC=true;;
-		?)
+		*)
 			echo "$helpMessage" 1>&2
 			exit $errorCore
 		;;
 	esac
 done
 
-# Check count of arguments
-if [ "$#" == 0 ]; then
+# Required arguments count
+argumentTotalCount="$#"
+argumentCount=$(( $argumentTotalCount - $OPTIND ))
+
+# Check count of required arguments
+if [[ "$argumentCount" != 0 && "$argumentCount" != 1  ]]; then
 	echo "$helpMessage" 1>&2
 	exit $errorCore
+#
+elif [ "$argumentCount" == 1 ]; then
+	eval argumentDir='$'$(( $argumentTotalCount - 1))
+	eval argumentRegex='$'$(( $argumentTotalCount ))
+#
+elif [ "$argumentCount" == 0 ]; then
+	eval argumentDir='$'$(( $argumentTotalCount ))
 fi
 
-if [ "$argumentV" == true ]; then
-	echo "V"
+echo -n "Functions: "
+
+if $argumentV; then
+	echo -n "V"
 fi
 
-if [ "$argumentT" == true ]; then
-	echo "T"
+if $argumentT; then
+	echo -n "T"
 fi
 
-if [ "$argumentR" == true ]; then
-	echo "R"
+if $argumentR; then
+	echo -n"R"
 fi
 
-if [ "$argumentS" == true ]; then
-	echo "S"
+if $argumentS; then
+	echo -n "S"
 fi
 
-if [ "$argumentC" == true ]; then
-	echo "C"
+if $argumentC; then
+	echo -n "C"
 fi
+
+echo ""
+
+# Debug output
+echo "Argument directory: $argumentDir"
+echo "Argument regex: $argumentRegex"
