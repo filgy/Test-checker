@@ -3,8 +3,6 @@
 # IOS - Projekt
 # Autor:
 #
-# find -type f  -print0 | xargs -0 ls -l
-# find -type f -exec ls -l {} +
 
 export LC_ALL=C
 
@@ -41,13 +39,10 @@ function printError()
 
 function processV()
 {
-	returnValue="$errorOK"
-	
 	if [ "$1" == "" ]; then
 		printError "Undefined tree in function processV, skipping test"
 		
-		returnValue="$errorCore"
-		return
+		return "$errorCore"		
 	fi
 	
 	# start #main loop
@@ -116,25 +111,28 @@ function processV()
 	done < <( find "$1" -type d | grep -E "$2" )
 	# end of #main loop
 	
-	echo "$returnValue"
+	return "$returnValue"
 }
 
 function processT(){
-	return
+	local returnValue="$errorOK"
+
+	return "$returnValue"
 }
 
 function processR(){
-	return
+	local returnValue="$errorOK"
+	
+	return "$returnValue"
 }
 
 function processS(){
-	returnValue="$errorOK"
+	local returnValue="$errorOK"
 	
 	if [ "$1" == "" ]; then
 		printError "Undefined tree in function processS, skipping test"
 		
-		returnValue="$errorCore"
-		return
+		return "$errorCore"
 	fi
 	
 	while read line; do
@@ -143,22 +141,21 @@ function processS(){
 		if [ -w "$line" ] && [ ! -e "$newName" -o -w "$newName" ]; then
 			mv "$line" "$newName"
 		else	
-			printError "Cannot rename "$line", permission denied"
+			printError "Cannot rename: $line"
 			returnValue="$errorTest"
 		fi
 	done < <( find "$1" -type f -regex ".+\(stdout\|stderr\|status\)\-captured$" | grep -E "$2" )
 	
-	echo "$returnValue"
+	return "$returnValue"
 }
 
 function processC(){
-	returnValue="$errorOK"
+	local returnValue="$errorOK"
 	
 	if [ "$1" == "" ]; then
 		printError "Undefined tree in function processC, skipping test"
 		
-		returnValue="$errorCore"
-		return
+		return "$errorCore"
 	fi
 	
 	while read line; do
@@ -172,8 +169,10 @@ function processC(){
 
 	done < <( find "$1" -type f -regex ".+\(stdout\|stderr\|status\)\-\(captured\|delta\)$" | grep -E "$2" )
 
-	echo "$returnValue"
+	return "$returnValue"
 }
+
+returnValue="$errorOK"
 
 # Parsing arguments
 while getopts ':vtrsc' argument; do
@@ -197,8 +196,8 @@ argumentCount=$(( $argumentTotalCount - $OPTIND ))
 
 # Check count of required arguments
 if [[ "$argumentCount" != 0 && "$argumentCount" != 1 || "$OPTIND" == 1  ]]; then
-	echo "$helpMessage" 1>&2
-	exit $errorCore
+	printError "$helpMessage"
+	exit "$errorCore"
 # Parsing arguments directory & regexp
 elif [ "$argumentCount" == 1 ]; then
 	eval argumentDir='$'$(( $argumentTotalCount - 1))
@@ -211,25 +210,36 @@ fi
 # Checking valid tree
 if [ ! -d "$argumentDir" ]; then
 	printError "Invalid tree.. aborting!"
-	exit $errorTest
+	exit "$errorCore"
 fi
 
 if $argumentV; then
 	processV "$argumentDir" "$argumentRegex"
+	returnValue=$(( $returnValue + $?))
 fi
 
 if $argumentT; then
-	processT "$argumentDir" "$argumentRegex"
+	processT "$argumentDir" "$argumentRegex"	
+	returnValue=$(( $returnValue + $?))
 fi
 
 if $argumentR; then
-	processR "$argumentDir" "$argumentRegex"
+	processR "$argumentDir" "$argumentRegex"	
+	returnValue=$(( $returnValue + $?))
 fi
 
 if $argumentS; then
 	processS "$argumentDir" "$argumentRegex"
+	returnValue=$(( $returnValue + $?))
 fi
 
 if $argumentC; then
 	processC "$argumentDir" "$argumentRegex"
+	returnValue=$(( $returnValue + $?))
+fi
+
+if [ "$returnValue" -gt 0 ]; then
+	exit "$errorTest"
+else
+	exit "$errorOK"
 fi
