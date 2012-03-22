@@ -4,7 +4,6 @@
 # Autor: F. Kolacek xkolac12
 #
 # jednotlive adresa sort dle absolutni cesty
-# TEST v kanonickem
 
 export LC_ALL=C
 
