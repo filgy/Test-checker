@@ -1,8 +1,10 @@
 #!/bin/bash
 
-# IOS - Projekt
-# Autor:
+# IOS - Projekt 1
+# Autor: F. Kolacek xkolac12
 #
+# jednotlive adresa sort dle absolutni cesty
+# TEST v kanonickem
 
 export LC_ALL=C
 
@@ -30,10 +32,45 @@ errorOK=0
 errorTest=1
 errorCore=2
 
+colorOk="\033[32m""OK""\033[0m"
+colorFailed="\033[31m""FAILED""\033[0m"
+
 function printError()
 {
 	if [ "$1" != "" ]; then
 		echo "[!] $1" 1>&2
+	fi
+}
+
+function printStatusStdout(){
+	if [ "$1" != "" ]; then
+		if [ -t 1 ]; then
+			case "$2" in
+				0) echo -e "$1: $colorOK";;
+				*) echo -e "$1: $colorFAILED";;
+			esac
+		else
+			case "$2" in
+				0) echo -e "$1: OK";;
+				*) echo -e "$1: FAILED";;
+			esac			
+		fi
+	fi
+}
+
+function printStatusStderr(){
+	if [ "$1" != "" ]; then
+		if [ -t 2 ]; then
+			case "$2" in
+				0) echo -e "$1: $colorOk" 1>&2;;
+				*) echo -e "$1: $colorFailed" 1>&2;;
+			esac
+		else
+			case "$2" in
+				0) echo -e "$1: OK" 1>&2;;
+				*) echo -e "$1: FAILED" 1>&2;;
+			esac			
+		fi
 	fi
 }
 
@@ -53,7 +90,7 @@ function processV()
 		local hardLinkCount=`find "$line" -maxdepth 1 -type f -a \! -links 1 | wc -l`
 		local extraFilesCount=`find "$line" -maxdepth 1 \! -type d ! -regex ".+\(\(stdout\|stderr\|status\)\-\(expected\|captured\|delta\)\|cmd\-given\|stdin\-given\)$" | wc -l`		
 		
-		echo "$line (D: $dirCount, F: $fileCount, E: $extraFilesCount)"
+		#printStatus "$line (D: $dirCount, F: $fileCount, E: $extraFilesCount)" 1
 		
 		# Pokud je v nejakem adresari aspon jeden adresar, tak v nem nejsou zadne jine soubory
 		if [ "$dirCount" -gt 0 -a "$fileCount" -gt 0 ]; then
@@ -69,20 +106,20 @@ function processV()
 		
 		# V kazdem adresari, ve kterem nejsou zadne dalsi adresare existuje soubor cmd-given a uzivatel ma pravo jej spoustet
 		if [ "$dirCount" -eq 0 ] && [ ! -f "$line/cmd-given" -o ! -x "$line/cmd-given" ]; then
-			printError "Cant find executable cmd-given in: $line"
+			printError "No executable cmd-given in: $line"
 			returnValue="$errorTest"
 		fi
 		
 		# Vsechny soubory stdin-given jsou uzivateli pristupne pro cteni
 		if [ -e "$line/stdin-given" -a ! -r "$line/stdin-given" ]; then
-			printError "Found unreadable: $line/stdin-given"
+			printError "No read permissions in: $line/stdin-given"
 			returnValue="$errorTest"
 		fi				
 		
 		while read file; do
 			# Vsechny soubory {stdout,stderr,status}-{expected,captured,delta} jsou uzivateli pristupne pro zapis, existuji-li
 			if [ ! -w "$file" ]; then
-				printError "Found unwritable: $file"
+				printError "No write permissions in: $file"
 				returnValue="$errorTest"
 			fi
 
@@ -103,12 +140,12 @@ function processV()
 		
 		# Ve stromu jsou pouze adresare adresaru a vyse vyjmenovane soubory
 		if [ "$extraFilesCount" -ne 0 ]; then
-			printError "Found extra garbage in: $line"
+			printError "Unexpected files in: $line"
 			returnValue="$errorTest"
 		fi
 		
 
-	done < <( find "$1" -type d | grep -E "$2" )
+	done < <( find "$1" -type d | sort | grep -E "$2" )
 	# end of #main loop
 	
 	return "$returnValue"
@@ -116,12 +153,102 @@ function processV()
 
 function processT(){
 	local returnValue="$errorOK"
+	local testValue=0
+	
+	local currentDir=`pwd`
+
+	# start of #main loop
+	while read line; do
+		if [ -e "$line/cmd-given" ]; then
+
+			testValue=0
+			cd "$line"
+
+			if [ -e "stdin-given" ]; then
+				./cmd-given < stdin-given 1> stdout-captured 2> stderr-captured
+				echo "$?" > status-captured
+			else
+				./cmd-given < /dev/null 1> stdout-captured 2> stderr-captured
+				echo "$?" > status-captured
+			fi		
+			
+			diff -up stdout-expected stdout-captured > stdout-delta 
+			if [ "$?" -gt 1 ]; then
+				testValue=1; 
+				returnValue=1; 
+			fi
+			
+			diff -up stderr-expected stderr-captured > stderr-delta
+			if [ "$?" -gt 1 ]; then 
+				testValue=1; 
+				returnValue=1; 
+			fi
+			
+			diff -up status-expected status-captured > status-delta
+			if [ "$?" -gt 1 ]; then 
+				testValue=1; 
+				returnValue=1; 
+			fi
+			
+			if [ -s "stdout-delta" -o -s "stderr-delta" -o -s "status-delta" ]; then
+				testValue=1
+				returnValue=1
+			fi
+
+			printStatusStderr "$line" "$testValue"
+			
+			cd "$currentDir"
+		fi	
+	done < <( find "$1" -type d | sort | grep -E "$2" )
+	#end of #main loop	
 
 	return "$returnValue"
 }
 
 function processR(){
 	local returnValue="$errorOK"
+	local testValue=0
+	
+	local currentDir=`pwd`
+
+	# start of #main loop
+	while read line; do
+	
+		if [ -e "$line/cmd-given" ]; then
+		
+			testValue=0
+			cd "$line"
+		
+			diff -up stdout-expected stdout-captured > stdout-delta 
+			if [ "$?" -gt 1 ]; then
+				testValue=1; 
+				returnValue=1; 
+			fi
+			
+			diff -up stderr-expected stderr-captured > stderr-delta
+			if [ "$?" -gt 1 ]; then 
+				testValue=1; 
+				returnValue=1; 
+			fi
+			
+			diff -up status-expected status-captured > status-delta
+			if [ "$?" -gt 1 ]; then 
+				testValue=1; 
+				returnValue=1; 
+			fi
+			
+			if [ -s "stdout-delta" -o -s "stderr-delta" -o -s "status-delta" ]; then
+				testValue=1
+				returnValue=1
+			fi
+
+			printStatusStdout "$line" "$testValue"
+			
+			cd "$currentDir"		
+		fi
+	
+	done < <( find "$1" -type d | sort | grep -E "$2" )
+	#end of #main loop	
 	
 	return "$returnValue"
 }
@@ -141,10 +268,10 @@ function processS(){
 		if [ -w "$line" ] && [ ! -e "$newName" -o -w "$newName" ]; then
 			mv "$line" "$newName"
 		else	
-			printError "Cannot rename: $line"
+			printError "Cannot rename file: $line"
 			returnValue="$errorTest"
 		fi
-	done < <( find "$1" -type f -regex ".+\(stdout\|stderr\|status\)\-captured$" | grep -E "$2" )
+	done < <( find "$1" -type f -regex ".+\(stdout\|stderr\|status\)\-captured$" | sort | grep -E "$2" )
 	
 	return "$returnValue"
 }
@@ -163,11 +290,11 @@ function processC(){
 		if [ -w "$line" ]; then
 			rm "$line"
 		else
-			printError "Cannot remove: $line"
+			printError "Cannot remove file: $line"
 			returnValue="$errorTest"
 		fi
 
-	done < <( find "$1" -type f -regex ".+\(stdout\|stderr\|status\)\-\(captured\|delta\)$" | grep -E "$2" )
+	done < <( find "$1" -type f -regex ".+\(stdout\|stderr\|status\)\-\(captured\|delta\)$" | sort | grep -E "$2" )
 
 	return "$returnValue"
 }
