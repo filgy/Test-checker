@@ -46,13 +46,13 @@ function printStatusStdout(){
 	if [ "$1" != "" ]; then
 		if [ -t 1 ]; then
 			case "$2" in
-				0) echo -e "$1: $colorOK";;
-				*) echo -e "$1: $colorFAILED";;
+				0) echo -e "$1: $colorOk";;
+				*) echo -e "$1: $colorFailed";;
 			esac
 		else
 			case "$2" in
-				0) echo -e "$1: OK";;
-				*) echo -e "$1: FAILED";;
+				0) echo "$1: OK";;
+				*) echo "$1: FAILED";;
 			esac			
 		fi
 	fi
@@ -67,8 +67,8 @@ function printStatusStderr(){
 			esac
 		else
 			case "$2" in
-				0) echo -e "$1: OK" 1>&2;;
-				*) echo -e "$1: FAILED" 1>&2;;
+				0) echo "$1: OK" 1>&2;;
+				*) echo "$1: FAILED" 1>&2;;
 			esac			
 		fi
 	fi
@@ -147,7 +147,7 @@ function processV()
 		fi
 		
 
-	done < <( find "$1" -type d | sort | grep -E "$2" )
+	done < <( find "$1" -type d | grep -E "$2" | sort )
 	# end of #main loop
 	
 	return "$returnValue"
@@ -197,11 +197,12 @@ function processT(){
 				returnValue=1
 			fi
 
-			printStatusStderr "$line" "$testValue"
+			canonPath=`echo "${line/$1//}" | sed -re 's/^\/+//g'`
+			printStatusStderr "$canonPath" "$testValue"
 			
 			cd "$currentDir"
 		fi	
-	done < <( find "$1" -type d | sort | grep -E "$2" )
+	done < <( find "$1" -type d |  grep -E "$2" | sort )
 	#end of #main loop	
 
 	return "$returnValue"
@@ -244,12 +245,13 @@ function processR(){
 				returnValue=1
 			fi
 
-			printStatusStdout "$line" "$testValue"
+			canonPath=`echo "${line/$1//}" | sed -re 's/^\/+//g'`
+			printStatusStdout "$canonPath" "$testValue"
 			
 			cd "$currentDir"		
 		fi
 	
-	done < <( find "$1" -type d | sort | grep -E "$2" )
+	done < <( find "$1" -type d |  grep -E "$2" | sort )
 	#end of #main loop	
 	
 	return "$returnValue"
@@ -274,7 +276,7 @@ function processS(){
 			returnValue="$errorTest"
 		fi
 	# done < <( find "$1" -type f -regex ".+\(stdout\|stderr\|status\)\-captured$" | sort | grep -E "$2" )
-	done < <( find "$1" -type f | grep -E "(stdout|stderr|status)\-captured$" | sort | grep -E "$2" )
+	done < <( find "$1" -type f | grep -E "(stdout|stderr|status)\-captured$" |  grep -E "$2" | sort )
 	
 	return "$returnValue"
 }
@@ -298,7 +300,7 @@ function processC(){
 		fi
 
 	# done < <( find "$1" -type f -regex ".+\(stdout\|stderr\|status\)\-\(captured\|delta\)$" | sort | grep -E "$2" )	
-	done < <( find "$1" -type f | grep -E "(stdout|stderr-status)\-(captured|delta)$" | sort | grep -E "$2" )
+	done < <( find "$1" -type f | grep -E "(stdout|stderr-status)\-(captured|delta)$" |  grep -E "$2" | sort )
 
 	return "$returnValue"
 }
