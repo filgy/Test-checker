@@ -84,11 +84,12 @@ function processV()
 	
 	# start #main loop
 	while read line; do		
-		local dirCount=$((`find "$line" -maxdepth 1 -type d | wc -l` - 1))
-		local fileCount=`find "$line" -maxdepth 1 \! -type d  | wc -l`	
-		local softLinkCount=`find "$line" -maxdepth 1 -type l | wc -l`
-		local hardLinkCount=`find "$line" -maxdepth 1 -type f -a \! -links 1 | wc -l`
-		local extraFilesCount=`find "$line" -maxdepth 1 \! -type d ! -regex ".+\(\(stdout\|stderr\|status\)\-\(expected\|captured\|delta\)\|cmd\-given\|stdin\-given\)$" | wc -l`		
+		local dirCount=$((`find "$line" -maxdepth 1 -type d | wc -l | sed -re 's/\ //g'` - 1))
+		local fileCount=`find "$line" -maxdepth 1 \! -type d  | wc -l | sed -re 's/\ //g'`	
+		local softLinkCount=`find "$line" -maxdepth 1 -type l | wc -l | sed -re 's/\ //g'`
+		local hardLinkCount=`find "$line" -maxdepth 1 -type f -a \! -links 1 | wc -l | sed -re 's/\ //g'`
+		#local extraFilesCount=`find "$line" -maxdepth 1 \! -type d ! -regex ".+\(\(stdout\|stderr\|status\)\-\(expected\|captured\|delta\)\|cmd\-given\|stdin\-given\)$" | wc -l`		
+		local extraFilesCount=`find "$line" -maxdepth 1 \! -type d | grep -v -E "((stdout|stderr|status)\-(expected|captured|delta)|cmd\-given|stdin\-given)$" | wc -l | sed -re 's/\ //g'`		
 		
 		#printStatus "$line (D: $dirCount, F: $fileCount, E: $extraFilesCount)" 1
 		
@@ -125,18 +126,19 @@ function processV()
 
 			# Vsechny soubory status-{expected,captured} obsahuji pouze cele cislo zapsane v desitkove soustave nasledovane 0x0A
 			if [ `basename "$file"` == "status-expected" -o `basename "$file"` == "status-captured"  ]; then
-				if [ `cat "$file" | wc -l` -ne 1 ]; then
+				if [ `cat "$file" | wc -l | sed -re 's/\ //g'` -ne 1 ]; then
 					printError "Extra line in: $file"
 					returnValue="$errorTest"
 				fi
 			
-				if [ `grep -xE "^[0-9]+$" "$file" | wc -l` -ne 1 ]; then
+				if [ `grep -xE "^[0-9]+$" "$file" | wc -l | sed -re 's/\ //g'` -ne 1 ]; then
 					printError "Not a number in: $file"
 					returnValue="$errorTest"				
 				fi
 			fi
 			
-		done < <( find "$line" -maxdepth 1 -type f -regex ".+\(stdout\|stderr\|status\)\-\(expected\|captured\|delta\)$" )
+		# done < <( find "$line" -maxdepth 1 -type f -regex ".+\(stdout\|stderr\|status\)\-\(expected\|captured\|delta\)$" )		
+		done < <( find "$line" -maxdepth 1 -type f | grep -E "(stdout|stderr|status)\-(expected|captured|delta)$" )
 		
 		# Ve stromu jsou pouze adresare adresaru a vyse vyjmenovane soubory
 		if [ "$extraFilesCount" -ne 0 ]; then
@@ -271,7 +273,8 @@ function processS(){
 			printError "Cannot rename file: $line"
 			returnValue="$errorTest"
 		fi
-	done < <( find "$1" -type f -regex ".+\(stdout\|stderr\|status\)\-captured$" | sort | grep -E "$2" )
+	# done < <( find "$1" -type f -regex ".+\(stdout\|stderr\|status\)\-captured$" | sort | grep -E "$2" )
+	done < <( find "$1" -type f | grep -E "(stdout|stderr|status)\-captured$" | sort | grep -E "$2" )
 	
 	return "$returnValue"
 }
@@ -294,7 +297,8 @@ function processC(){
 			returnValue="$errorTest"
 		fi
 
-	done < <( find "$1" -type f -regex ".+\(stdout\|stderr\|status\)\-\(captured\|delta\)$" | sort | grep -E "$2" )
+	# done < <( find "$1" -type f -regex ".+\(stdout\|stderr\|status\)\-\(captured\|delta\)$" | sort | grep -E "$2" )	
+	done < <( find "$1" -type f | grep -E "(stdout|stderr-status)\-(captured|delta)$" | sort | grep -E "$2" )
 
 	return "$returnValue"
 }
