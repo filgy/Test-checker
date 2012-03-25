@@ -41,36 +41,22 @@ function printError()
 	fi
 }
 
-function printStatusStdout(){
-	if [ "$1" != "" ]; then
-		if [ -t 1 ]; then
-			case "$2" in
-				0) echo -e "$1: $colorOk";;
-				*) echo -e "$1: $colorFailed";;
-			esac
-		else
-			case "$2" in
-				0) echo "$1: OK";;
-				*) echo "$1: FAILED";;
-			esac			
-		fi
-	fi
-}
+function printStatus()
+{
 
-function printStatusStderr(){
-	if [ "$1" != "" ]; then
-		if [ -t 2 ]; then
-			case "$2" in
-				0) echo -e "$1: $colorOk" 1>&2;;
-				*) echo -e "$1: $colorFailed" 1>&2;;
-			esac
-		else
-			case "$2" in
-				0) echo "$1: OK" 1>&2;;
-				*) echo "$1: FAILED" 1>&2;;
-			esac			
-		fi
-	fi
+        if [ "$1" != "" ]; then
+                if [ -t "$3" ];then
+                        case "$2" in
+                                0) echo -e "$1: $colorOk" 1>&"$3";;
+                                *) echo -e "$1: $colorFailed" 1>&"$3";
+                        esac
+                else
+                        case "$2" in
+                                0) echo "$1: OK" 1>&"$3";;
+                                *) echo "$1: FAILED" 1>&"$3";
+                        esac
+                fi
+        fi
 }
 
 function processV()
@@ -164,6 +150,11 @@ function processT(){
 
 			testValue=0
 			cd "$line"
+			if [ "$?" -ne 0 ]; then
+				printError "Cannot enter to: $line"
+				returnValue=1; 
+				continue
+			fi
 
 			if [ -e "stdin-given" ]; then
 				./cmd-given < stdin-given 1> stdout-captured 2> stderr-captured
@@ -197,9 +188,16 @@ function processT(){
 			fi
 
 			canonPath=`echo "${line/$1//}" | sed -re 's/^\/+//g'`
-			printStatusStderr "$canonPath" "$testValue"
+			#printStatusStderr "$canonPath" "$testValue"
+			printStatus "$canonPath" "$testValue" "2"
 			
 			cd "$currentDir"
+			if [ "$?" -ne 0 ]; then
+				printError "Cannot return to: $currentDir, aborting test"
+				returnValue=1; 
+				break
+			fi
+			
 		fi	
 	done < <( find "$1" -type d |  grep -E "$2" | sort )
 	#end of #main loop	
@@ -220,6 +218,12 @@ function processR(){
 		
 			testValue=0
 			cd "$line"
+			
+			if [ "$?" -ne 0 ]; then
+				printError "Cannot enter to: $line"
+				returnValue=1; 
+				continue
+			fi
 		
 			diff -up stdout-expected stdout-captured > stdout-delta 
 			if [ "$?" -gt 1 ]; then
@@ -245,9 +249,16 @@ function processR(){
 			fi
 
 			canonPath=`echo "${line/$1//}" | sed -re 's/^\/+//g'`
-			printStatusStdout "$canonPath" "$testValue"
+			#printStatusStdout "$canonPath" "$testValue"
+			printStatus "$canonPath" "$testValue" "1"
 			
-			cd "$currentDir"		
+			cd "$currentDir"	
+
+			if [ "$?" -ne 0 ]; then
+				printError "Cannot return to: $currentDir, aborting test"
+				returnValue=1; 
+				break
+			fi
 		fi
 	
 	done < <( find "$1" -type d |  grep -E "$2" | sort )
