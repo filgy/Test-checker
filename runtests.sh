@@ -166,19 +166,19 @@ function processT(){
 			
 			diff -up stdout-expected stdout-captured > stdout-delta 
 			if [ "$?" -gt 1 ]; then
-				testValue=1; 
+				#testValue=1; 
 				returnValue=1; 
 			fi
 			
 			diff -up stderr-expected stderr-captured > stderr-delta
 			if [ "$?" -gt 1 ]; then 
-				testValue=1; 
+				#testValue=1; 
 				returnValue=1; 
 			fi
 			
 			diff -up status-expected status-captured > status-delta
 			if [ "$?" -gt 1 ]; then 
-				testValue=1; 
+				#testValue=1; 
 				returnValue=1; 
 			fi
 			
@@ -227,19 +227,19 @@ function processR(){
 		
 			diff -up stdout-expected stdout-captured > stdout-delta 
 			if [ "$?" -gt 1 ]; then
-				testValue=1; 
+				#testValue=1; 
 				returnValue=1; 
 			fi
 			
 			diff -up stderr-expected stderr-captured > stderr-delta
 			if [ "$?" -gt 1 ]; then 
-				testValue=1; 
+				#testValue=1; 
 				returnValue=1; 
 			fi
 			
 			diff -up status-expected status-captured > status-delta
 			if [ "$?" -gt 1 ]; then 
-				testValue=1; 
+				#testValue=1; 
 				returnValue=1; 
 			fi
 			
